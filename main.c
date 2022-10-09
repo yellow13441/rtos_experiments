@@ -7,11 +7,13 @@
 *********************************************************************************************************
 */
 /*
-for book:嵌入式实时操作系统μCOS原理与实践
-卢有亮
-2011于成都电子科技大学
+黄立省
+yellow13441
+huanglisheng@mail.ustc.edu.cn
 */
 #include "includes.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 /*
 *********************************************************************************************************
@@ -45,6 +47,21 @@ void VCInit(void);						//初始化相关变量,一定需要
 *********************************************************************************************************
 */
 
+// define a RMTask struct
+struct RMTask {
+    int task_id;
+    int computation_time;
+    int period_time;
+    int priority;
+};
+
+int cmp_by_period( const void *a, const void *b )
+{
+    const struct RMTask *first  = a;
+    const struct RMTask *second = b;
+
+    return ( second->period_time < first->period_time ) - ( first->period_time < second->period_time );
+}
 
 int main(int argc, char **argv)
 {
@@ -115,6 +132,38 @@ int main(int argc, char **argv)
 			break;
 		case 9://内存管理
 			 OSTaskCreate(TaskM, 0, &TaskStk[8][TASK_STK_SIZE-1], 6);
+			break;
+		case 10://RM算法
+			// hPrio is the highest avaliable priority of TCB currently
+			int hPrio = 0;
+			int tasks_count, c,  t;
+			struct RMTask RMTasks[tasks_count];
+			scanf("%d", &tasks_count);
+			// initialize all RM Tasks and set priority -1 preliminary
+			for (int i = 0; i < tasks_count; i++) {
+				scanf("%d %d", &c, &t);
+				RMTasks[i].task_id = i;
+				RMTasks[i].computation_time = c;
+				RMTasks[i].period_time = t;
+				RMTasks[i].priority = -1;
+			}
+			// for (int i = 0; i < tasks_count; i++) {
+			// 	printf("\nTask%d:\n", i);
+			// 	printf("C:%d T:%d", RMTasks[i].computation_time, RMTasks[i].period_time);
+			// }
+
+			// set up RM Tasks' priority preliminary with their period time
+			qsort(RMTasks, tasks_count, sizeof(struct RMTask), cmp_by_period);
+
+			// Create OS tasks in order of decreasing priority
+			// and set their final priority
+			for (int i = 0; i < tasks_count; i++) {
+				// get current highest avaliable priority of TCB
+				while (OSTCBPrioTbl[hPrio] != (OS_TCB *)0){
+					hPrio++;
+				}
+				OSTaskCreate(TaskRMTemplate, RMTasks + i, &TaskStk[hPrio][TASK_STK_SIZE-1], hPrio);
+			}
 			break;
 		default:           
 			;
